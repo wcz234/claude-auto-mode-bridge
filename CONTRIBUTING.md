@@ -5,7 +5,7 @@ Contributions are welcome! Here's how to get started.
 ## Development
 
 ```bash
-git clone https://github.com/xpyqj/claude-auto-mode-bridge.git
+git clone https://github.com/wcz234/claude-auto-mode-bridge.git
 cd claude-auto-mode-bridge
 ```
 

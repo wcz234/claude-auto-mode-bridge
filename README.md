@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-compatible-brightgreen)](https://docs.anthropic.com/en/docs/claude-code)
-[![GitHub Stars](https://img.shields.io/github/stars/xpyqj/claude-auto-mode-bridge?style=social)](https://github.com/xpyqj/claude-auto-mode-bridge)
+[![GitHub Stars](https://img.shields.io/github/stars/wcz234/claude-auto-mode-bridge?style=social)](https://github.com/wcz234/claude-auto-mode-bridge)
 
 **Enable Claude Code's `auto mode` for any model — MiMo, DeepSeek, OpenRouter, and beyond.**
 
@@ -35,7 +35,7 @@ After:   claude                         →  ✅ Auto mode for ANY model
 
 ```bash
 # 1. Clone
-git clone https://github.com/xpyqj/claude-auto-mode-bridge.git
+git clone https://github.com/wcz234/claude-auto-mode-bridge.git
 cd claude-auto-mode-bridge
 
 # 2. Install
@@ -226,3 +226,9 @@ Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) by Anthropic
 - [deepclaude](https://github.com/aattaran/deepclaude) for the multi-backend proxy pattern
 - [hookify](https://github.com/anthropics/claude-code/tree/main/plugins/hookify) for the hook rule engine pattern
+
+---
+
+<p align="center">
+  If this project helps you, consider giving it a ⭐
+</p>

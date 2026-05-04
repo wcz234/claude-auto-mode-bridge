@@ -12,7 +12,7 @@ cd deepclaude
 ## Step 2: Install this bridge
 
 ```bash
-git clone https://github.com/xpyqj/claude-auto-mode-bridge.git
+git clone https://github.com/wcz234/claude-auto-mode-bridge.git
 cd claude-auto-mode-bridge
 python install.py
 ```

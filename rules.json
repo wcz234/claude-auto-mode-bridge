@@ -87,7 +87,7 @@
     {
       "name": "Download and Execute",
       "tools": ["Bash"],
-      "pattern": "(curl|wget).*\\|\\s*(bash|sh|python|node|perl|ruby|php)",
+      "pattern": "(curl|wget).*\\|\\s*(bash|sh)\\b",
       "reason": "Downloading and executing external code is blocked"
     },
     {

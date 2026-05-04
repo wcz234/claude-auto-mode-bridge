@@ -1,153 +1,46 @@
 {
   "allow": [
     {
-      "name": "Read-Only Tools",
-      "tools": ["Read", "Glob", "Grep", "WebSearch", "WebFetch", "NotebookEdit"],
-      "reason": "Read-only tools are always allowed"
-    },
-    {
-      "name": "Read-Only Git",
-      "tools": ["Bash"],
-      "pattern": "^\\s*git\\s+(status|log|diff|show|branch|remote|rev-parse|describe|tag\\s+(-l)?)",
-      "reason": "Read-only git operations"
-    },
-    {
-      "name": "Read-Only Shell",
-      "tools": ["Bash"],
-      "pattern": "^\\s*(ls|cat|head|tail|grep|find|wc|echo|pwd|which|where|whoami|date|env|printenv|type|file|stat|du|df|uname|node\\s+--version|python\\s+--version|npm\\s+--version|pip\\s+--version|java\\s+-version|go\\s+version|rustc\\s+--version)",
-      "reason": "Read-only shell commands"
-    },
-    {
-      "name": "Test Commands",
-      "tools": ["Bash"],
-      "pattern": "^\\s*(npm\\s+test|pytest|go\\s+test|cargo\\s+test|mvn\\s+test|gradle\\s+test|make\\s+test|jest|vitest)",
-      "reason": "Running tests"
-    },
-    {
-      "name": "Build Commands",
-      "tools": ["Bash"],
-      "pattern": "^\\s*(npm\\s+(run\\s+)?build|cargo\\s+build|go\\s+build|make|mvn\\s+package|gradle\\s+build|tsc|webpack|vite)",
-      "reason": "Build commands"
-    },
-    {
-      "name": "Declared Dependencies",
-      "tools": ["Bash"],
-      "pattern": "^\\s*(pip\\s+install\\s+-r|npm\\s+install(\\s|$)|cargo\\s+(build|install)|bundle\\s+install|pnpm\\s+install|yarn\\s+install)",
-      "reason": "Installing declared dependencies"
-    },
-    {
-      "name": "Local File Operations",
-      "tools": ["Edit", "Write", "MultiEdit"],
-      "reason": "File operations within project scope",
-      "path_check": "in_project"
-    },
-    {
-      "name": "Project Scripts",
-      "tools": ["Bash"],
-      "pattern": "^\\s*(npm\\s+run\\s+\\w+|npx\\s+|cargo\\s+run|pip\\s+run|python\\s+[\\w./-]+\\.py|node\\s+[\\w./-]+\\.js|ts-node\\s+)",
-      "reason": "Running project scripts"
-    },
-    {
-      "name": "Memory Directory",
-      "tools": ["Edit", "Write", "MultiEdit"],
-      "reason": "Agent memory directory writes",
-      "path_check": "in_memory_dir"
-    },
-    {
-      "name": "Git Workflow",
-      "tools": ["Bash"],
-      "pattern": "^\\s*(git\\s+add|git\\s+commit|git\\s+stash|git\\s+checkout\\s+(-b\\s+)?[\\w./-]+|git\\s+switch|git\\s+merge\\s+[\\w./-]+)",
-      "reason": "Standard git workflow operations"
-    },
-    {
-      "name": "Claude Internal Tools",
-      "tools": ["TodoWrite", "TodoRead", "TaskCreate", "TaskUpdate", "TaskList", "TaskGet", "Agent", "AskUserQuestion", "ExitPlanMode", "Skill"],
-      "reason": "Claude Code internal tools"
+      "name": "Allow All Tools",
+      "tools": ["Read", "Glob", "Grep", "WebSearch", "WebFetch", "NotebookEdit", "Edit", "Write", "MultiEdit", "Bash", "TodoWrite", "TodoRead", "TaskCreate", "TaskUpdate", "TaskList", "TaskGet", "Agent", "AskUserQuestion", "ExitPlanMode", "Skill"],
+      "reason": "All tools allowed (permissive mode)"
     }
   ],
   "deny": [
     {
-      "name": "Dangerous Delete",
+      "name": "Dangerous Recursive Delete",
       "tools": ["Bash"],
       "pattern": "rm\\s+(-[a-zA-Z]*r[a-zA-Z]*f|--recursive)\\s+(--no-preserve-root\\s+)?/",
-      "reason": "Dangerous recursive delete"
-    },
-    {
-      "name": "Force Push",
-      "tools": ["Bash"],
-      "pattern": "git\\s+push\\s+.*(--force|--force-with-lease|-f\\b)",
-      "reason": "Git force push is blocked"
-    },
-    {
-      "name": "Push to Default Branch",
-      "tools": ["Bash"],
-      "pattern": "git\\s+push\\s+(origin\\s+)?(main|master|develop)",
-      "reason": "Direct push to default branch is blocked, use a PR"
-    },
-    {
-      "name": "Download and Execute",
-      "tools": ["Bash"],
-      "pattern": "(curl|wget).*\\|\\s*(bash|sh)\\b",
-      "reason": "Downloading and executing external code is blocked"
+      "reason": "Recursive delete from root is blocked"
     },
     {
       "name": "System Destruction",
       "tools": ["Bash"],
-      "pattern": "(sudo\\s+rm|mkfs|dd\\s+if=|:(){ :\\|:& };:|chmod\\s+-R\\s+777\\s+/|shutdown|reboot|halt|init\\s+0)",
+      "pattern": "(sudo\\s+rm|mkfs|dd\\s+if=|:(){ :\\|:& };:|shutdown|reboot|halt|init\\s+0)",
       "reason": "System-level destructive operations are blocked"
-    },
-    {
-      "name": "Remote Shell Write",
-      "tools": ["Bash"],
-      "pattern": "(kubectl\\s+exec|docker\\s+exec|ssh\\s+|Enter-PSSession|Invoke-Command\\s+-ComputerName).*(>|tee|sed|echo.*>|cat.*>)",
-      "reason": "Remote shell writes are blocked"
-    },
-    {
-      "name": "Production Deploy",
-      "tools": ["Bash"],
-      "pattern": "(kubectl\\s+apply|kubectl\\s+set|kubectl\\s+rollout|docker\\s+push|wrangler\\s+deploy|vercel\\s+--prod|netlify\\s+deploy\\s+--prod|aws\\s+s3\\s+sync|gcloud\\s+app\\s+deploy)",
-      "reason": "Production deployment requires explicit confirmation"
-    },
-    {
-      "name": "Credential Exploration",
-      "tools": ["Bash"],
-      "pattern": "(cat|echo|printenv|env).*\\.(env|secret|key|pem|p12|pfx|credentials|password|token)",
-      "reason": "Credential exploration is blocked"
     },
     {
       "name": "Dangerous Git Reset",
       "tools": ["Bash"],
       "pattern": "git\\s+(reset\\s+--hard|clean\\s+-[a-zA-Z]*f|checkout\\s+\\.\\s*$)",
-      "reason": "Dangerous git reset operations are blocked"
+      "reason": "Dangerous git reset that destroys uncommitted work is blocked"
     },
     {
-      "name": "Self-Modification",
-      "tools": ["Edit", "Write", "MultiEdit"],
-      "reason": "Modifying agent configuration is blocked",
-      "path_check": "is_agent_config"
-    },
-    {
-      "name": "System File Write",
-      "tools": ["Edit", "Write", "MultiEdit"],
-      "reason": "Writing to system directories is blocked",
-      "path_check": "is_system_path"
-    },
-    {
-      "name": "Package Manager Dir Write",
-      "tools": ["Edit", "Write", "MultiEdit"],
-      "reason": "Modifying package manager directories is blocked",
-      "path_check": "is_package_dir"
-    },
-    {
-      "name": "Unsafe Agent Creation",
+      "name": "Remove System Directories",
       "tools": ["Bash"],
-      "pattern": "--dangerously-skip-permissions|--no-sandbox|--disable-sandbox",
-      "reason": "Creating unsafe agent loops is blocked"
+      "pattern": "rm\\s+(-[a-zA-Z]*[rf]|[a-zA-Z]*[rf])\\s+/(etc|usr|bin|sbin|lib|boot|System|Windows|Program)",
+      "reason": "Deleting system directories is blocked"
+    },
+    {
+      "name": "Remove Home Sensitive Dirs",
+      "tools": ["Bash"],
+      "pattern": "rm\\s+(-[a-zA-Z]*[rf]|[a-zA-Z]*[rf])\\s+(~|\\$HOME)?/?\\.(ssh|gnupg|aws|config)",
+      "reason": "Deleting sensitive home directories is blocked"
     }
   ],
   "llm_fallback": {
-    "enabled": true,
+    "enabled": false,
     "timeout_seconds": 10,
-    "prompt": "You are a security classifier. Judge if the following tool operation is safe. Return ONLY JSON: {\"decision\": \"allow\" or \"deny\", \"reason\": \"brief reason\"}\n\nSafe (allow): file read/write in project scope, run tests, install declared deps, standard git ops, read-only queries\nDangerous (deny): system file modification, force push, download+execute external code, data exfiltration, credential leak, production deploy, irreversible delete\n\nTool: {tool_name}\nInput: {tool_input}\nCWD: {cwd}"
+    "prompt": ""
   }
 }

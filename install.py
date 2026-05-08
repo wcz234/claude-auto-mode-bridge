@@ -56,7 +56,7 @@ def install():
         "hooks": [
             {
                 "type": "command",
-                "command": f"python {classifier_path}",
+                "command": f"{sys.executable} {classifier_path}",
                 "timeout": 15
             }
         ]

@@ -64,23 +64,27 @@ Claude Code（任意模型后端）
   │     ↓
   ├── PreToolUse Hook  ←  本项目
   │     │
-  │     ├── 第 1 层：规则引擎（<1ms）
-  │     │     ├── 匹配到 deny 规则  → 立即拦截
-  │     │     └── 匹配到 allow 规则 → 立即放行
+  │     ├── 第 1 层：deny 规则（<1ms）
+  │     │     └── 匹配到危险操作  → 立即拦截（输出 permissionDecision: deny）
   │     │
-  │     └── 第 2 层：LLM 兜底（可选，~1s）
-  │           └── 无规则匹配  → 询问模型决策
+  │     ├── 第 2 层：allow 规则（<1ms）
+  │     │     └── 匹配到安全操作  → 自动放行（输出 permissionDecision: allow）
+  │     │
+  │     └── 第 3 层：LLM 兜底（默认开启，~1-5s）
+  │           └── 无规则匹配  → 询问模型决策（allow / deny）
   │
   └── 工具执行（或被拦截）
 ```
 
 **deny 规则优先检查**（安全优先），其次是 allow 规则。如果都没有命中，则由 LLM 兜底分类。
 
+**关键**：hook 会显式输出 `permissionDecision: "allow"` 来触发自动放行，而非静默退出（静默退出会让 Claude Code 回退到默认权限流程，导致仍然弹出确认提示）。
+
 ---
 
 ## 内置规则
 
-### 拦截（仅破坏性删除操作）
+### 拦截（危险操作）
 
 | 类别 | 示例 |
 |------|------|
@@ -88,31 +92,47 @@ Claude Code（任意模型后端）
 | 系统级破坏 | `sudo rm`、`mkfs`、`dd if=` |
 | 危险 Git 重置 | `git reset --hard`、`git clean -f` |
 | 敏感目录删除 | `rm -rf ~/.ssh`、`rm -rf ~/.aws` |
+| Git 强制推送 | `git push --force`（不含 `--force-with-lease`） |
+| 管道执行远程代码 | `curl ... \| sh` |
+| sudo 命令 | `sudo ...` |
+| 危险权限设置 | `chmod 777` |
+| 数据库破坏 | `DROP TABLE`、`DROP DATABASE` |
+| 敏感文件修改 | `.env` 文件、agent 配置、系统路径 |
 
-### 放行（其他所有操作）
+### 放行（安全操作）
 
-宽松模式下，以下操作默认全部放行：
-- Git force push、push 到 main
-- 任意文件读写
-- 包安装、构建、测试
-- curl/管道操作
-- 生产部署
+| 类别 | 示例 |
+|------|------|
+| 只读工具 | Read、Glob、Grep、WebSearch、WebFetch |
+| 任务管理 | TaskCreate、TaskUpdate、TodoWrite 等 |
+| Git 只读命令 | `git status`、`git log`、`git diff`、`git branch` |
+| 构建/测试 | `npm`、`python`、`cargo`、`pytest`、`jest` |
+| 文件操作 | `ls`、`cat`、`head`、`tail`、`find` |
+| 项目内文件编辑 | Edit/Write 在项目目录内的文件 |
+| 包安装 | `npm install`、`pip install`、`cargo build` |
+| Agent 调用 | Agent、Skill、AskUserQuestion |
+
+### LLM 兜底（默认开启）
+
+对于规则未覆盖的操作，自动调用模型分类。约 1-5 秒延迟。
 
 ---
 
 ## LLM 兜底
 
-对于规则未覆盖的操作，可以调用你的模型来分类。复用 `settings.json` 中已配置的 API 凭证。
+对于规则未覆盖的操作，自动调用你的模型来分类。复用 `settings.json` 中已配置的 API 凭证。
 
 ```json
 // rules.json
 "llm_fallback": {
   "enabled": true,
-  "timeout_seconds": 10
+  "timeout_seconds": 5
 }
 ```
 
-兜底使用你配置的最便宜的模型（Haiku 级别），以最小化成本和延迟。如果 API 调用失败，默认**放行**（fail-open）。
+默认使用你配置的 Haiku 级别模型，以最小化成本和延迟。如果 API 调用失败，默认**放行**（fail-open）。
+
+内置的分类提示词会指导模型判断操作安全性，输出 `allow` 或 `deny` 决策。你也可以在 `rules.json` 中自定义 `prompt` 字段来覆盖默认提示词。
 
 ---
 

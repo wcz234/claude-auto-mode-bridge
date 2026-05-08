@@ -64,23 +64,27 @@ Claude Code (any model backend)
   |     |
   +-- PreToolUse Hook  <--  This bridge
   |     |
-  |     +-- Layer 1: Rule Engine (<1ms)
-  |     |     +-- Matched deny rule   --> Block immediately
-  |     |     +-- Matched allow rule  --> Allow immediately
+  |     +-- Layer 1: Deny rules (<1ms)
+  |     |     +-- Matched dangerous op --> Block (permissionDecision: deny)
   |     |
-  |     +-- Layer 2: LLM Fallback (optional, ~1s)
-  |           +-- No rule matched     --> Ask the model to decide
+  |     +-- Layer 2: Allow rules (<1ms)
+  |     |     +-- Matched safe op     --> Auto-approve (permissionDecision: allow)
+  |     |
+  |     +-- Layer 3: LLM Fallback (enabled by default, ~1-5s)
+  |           +-- No rule matched     --> Ask the model to decide (allow / deny)
   |
   +-- Tool executes (or is blocked)
 ```
 
-**Deny rules are checked first** (safety-first). Then allow rules. If neither matches, the LLM fallback classifies the operation.
+**Deny rules are checked first** (safety-first), then allow rules. If neither matches, the LLM fallback classifies the operation.
+
+**Key**: The hook explicitly outputs `permissionDecision: "allow"` to trigger auto-approval. Without this, Claude Code falls back to its default permission flow (still prompting the user).
 
 ---
 
 ## Built-in Rules
 
-### Blocked (Destructive Operations Only)
+### Blocked (Dangerous Operations)
 
 | Category | Examples |
 |---|---|
@@ -88,31 +92,47 @@ Claude Code (any model backend)
 | System destruction | `sudo rm`, `mkfs`, `dd if=` |
 | Dangerous git reset | `git reset --hard`, `git clean -f` |
 | Sensitive dir delete | `rm -rf ~/.ssh`, `rm -rf ~/.aws` |
+| Git force push | `git push --force` (without `--force-with-lease`) |
+| Pipe to shell | `curl ... \| sh` |
+| Sudo commands | `sudo ...` |
+| Dangerous chmod | `chmod 777` |
+| Database destruction | `DROP TABLE`, `DROP DATABASE` |
+| Sensitive file writes | `.env` files, agent config, system paths |
 
-### Allowed (Everything Else)
+### Allowed (Safe Operations)
 
-All other operations are allowed by default in permissive mode, including:
-- Git force push, push to main
-- File read/write anywhere
-- Package installs, builds, tests
-- curl/pipe operations
-- Production deployments
+| Category | Examples |
+|---|---|
+| Read-only tools | Read, Glob, Grep, WebSearch, WebFetch |
+| Task management | TaskCreate, TaskUpdate, TodoWrite, etc. |
+| Git read-only | `git status`, `git log`, `git diff`, `git branch` |
+| Build/test | `npm`, `python`, `cargo`, `pytest`, `jest` |
+| File listing | `ls`, `cat`, `head`, `tail`, `find` |
+| Project file edits | Edit/Write within project directory |
+| Package install | `npm install`, `pip install`, `cargo build` |
+| Agent calls | Agent, Skill, AskUserQuestion |
+
+### LLM Fallback (Enabled by Default)
+
+For operations not covered by rules, the model automatically classifies them. ~1-5s latency.
 
 ---
 
 ## LLM Fallback
 
-For operations not covered by rules, the bridge can ask your model to classify the operation. This uses the same API credentials already configured in your `settings.json`.
+For operations not covered by rules, the bridge automatically asks your model to classify the operation. This uses the same API credentials already configured in your `settings.json`.
 
 ```json
 // rules.json
 "llm_fallback": {
   "enabled": true,
-  "timeout_seconds": 10
+  "timeout_seconds": 5
 }
 ```
 
 The fallback uses your cheapest configured model (Haiku-tier) to minimize cost and latency. If the API call fails, the operation is **allowed by default** (fail-open).
+
+A built-in classification prompt guides the model to judge operation safety. You can override it by setting a custom `prompt` field in `rules.json`.
 
 ---
 

@@ -1,9 +1,66 @@
 {
   "allow": [
     {
-      "name": "Allow All Tools",
-      "tools": ["Read", "Glob", "Grep", "WebSearch", "WebFetch", "NotebookEdit", "Edit", "Write", "MultiEdit", "Bash", "TodoWrite", "TodoRead", "TaskCreate", "TaskUpdate", "TaskList", "TaskGet", "Agent", "AskUserQuestion", "ExitPlanMode", "Skill"],
-      "reason": "All tools allowed (permissive mode)"
+      "name": "Read-Only Tools",
+      "tools": ["Read", "Glob", "Grep", "WebSearch", "WebFetch", "NotebookEdit"],
+      "reason": "Read-only operations are always safe"
+    },
+    {
+      "name": "Task Management",
+      "tools": ["TodoWrite", "TodoRead", "TaskCreate", "TaskUpdate", "TaskList", "TaskGet"],
+      "reason": "Task management tools are safe"
+    },
+    {
+      "name": "Interaction Tools",
+      "tools": ["AskUserQuestion", "ExitPlanMode", "Skill"],
+      "reason": "User interaction and planning tools are safe"
+    },
+    {
+      "name": "Agent Tools",
+      "tools": ["Agent"],
+      "reason": "Agent subagent calls are safe"
+    },
+    {
+      "name": "Git Read-Only Commands",
+      "tools": ["Bash"],
+      "pattern": "^git\\s+(status|log|diff|branch|show|remote|tag|stash\\s+list|rev-parse|describe|name-only|shortlog|blame|ls-files)",
+      "reason": "Git read-only operations are safe"
+    },
+    {
+      "name": "File Listing Commands",
+      "tools": ["Bash"],
+      "pattern": "^(ls|dir|cat|head|tail|find|which|where|echo|printf|pwd|whoami|date|env|printenv|wc|sort|uniq|file|stat|du|tree|realpath|basename|dirname)\\b",
+      "reason": "File listing and info commands are safe"
+    },
+    {
+      "name": "Build and Test Commands",
+      "tools": ["Bash"],
+      "pattern": "^(npm|yarn|pnpm|npx|node|python|python3|pip|pip3|cargo|go|make|cmake|gradle|mvn|dotnet|java|javac|rustc|gcc|g\\+\\+|clang)\\b",
+      "reason": "Build toolchain commands are safe"
+    },
+    {
+      "name": "Test Runners",
+      "tools": ["Bash"],
+      "pattern": "^(pytest|jest|mocha|vitest|cargo\\s+test|go\\s+test|npm\\s+(test|run\\s+test)|yarn\\s+(test|run\\s+test)|phpunit|rspec)\\b",
+      "reason": "Test runners are safe"
+    },
+    {
+      "name": "Package Install Commands",
+      "tools": ["Bash"],
+      "pattern": "^(npm|yarn|pnpm|pip|pip3|cargo|go)\\s+install\\b",
+      "reason": "Package installation commands are safe"
+    },
+    {
+      "name": "Project File Edits",
+      "tools": ["Edit", "Write", "MultiEdit"],
+      "path_check": "in_project",
+      "reason": "Editing files within the project directory is safe"
+    },
+    {
+      "name": "Memory Directory Edits",
+      "tools": ["Edit", "Write"],
+      "path_check": "in_memory_dir",
+      "reason": "Editing Claude memory files is safe"
     }
   ],
   "deny": [
@@ -36,11 +93,59 @@
       "tools": ["Bash"],
       "pattern": "rm\\s+(-[a-zA-Z]*[rf]|[a-zA-Z]*[rf])\\s+(~|\\$HOME)?/?\\.(ssh|gnupg|aws|config)",
       "reason": "Deleting sensitive home directories is blocked"
+    },
+    {
+      "name": "Git Force Push",
+      "tools": ["Bash"],
+      "pattern": "git\\s+push\\b.*\\s--force(\\s|$)|git\\s+push\\b.*\\s-f(\\s|$)",
+      "reason": "Git force push without --force-with-lease is blocked"
+    },
+    {
+      "name": "Pipe to Shell",
+      "tools": ["Bash"],
+      "pattern": "(curl|wget)\\s.*\\|\\s*(sh|bash|zsh|dash)",
+      "reason": "Piping remote content directly to shell is blocked"
+    },
+    {
+      "name": "Sudo Commands",
+      "tools": ["Bash"],
+      "pattern": "^sudo\\s+",
+      "reason": "Sudo commands require explicit user approval"
+    },
+    {
+      "name": "Dangerous Chmod",
+      "tools": ["Bash"],
+      "pattern": "chmod\\s+(777|000|a\\+w)\\s",
+      "reason": "Overly permissive file permissions are blocked"
+    },
+    {
+      "name": "Database Destruction",
+      "tools": ["Bash"],
+      "pattern": "(DROP\\s+(TABLE|DATABASE)|rm\\s+.*\\.db|rm\\s+.*\\.sqlite)",
+      "reason": "Database destructive operations are blocked"
+    },
+    {
+      "name": "Write Env Files",
+      "tools": ["Edit", "Write", "MultiEdit"],
+      "pattern": "\\.env(\\.|$)",
+      "reason": "Modifying .env files (may contain secrets) is blocked"
+    },
+    {
+      "name": "Write Agent Config",
+      "tools": ["Edit", "Write", "MultiEdit"],
+      "path_check": "is_agent_config",
+      "reason": "Modifying agent configuration files is blocked"
+    },
+    {
+      "name": "Write System Paths",
+      "tools": ["Edit", "Write", "MultiEdit"],
+      "path_check": "is_system_path",
+      "reason": "Modifying system files is blocked"
     }
   ],
   "llm_fallback": {
-    "enabled": false,
-    "timeout_seconds": 10,
+    "enabled": true,
+    "timeout_seconds": 5,
     "prompt": ""
   }
 }

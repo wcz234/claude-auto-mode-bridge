@@ -12,7 +12,7 @@ License: MIT
 Repository: https://github.com/xpyqj/claude-auto-mode-bridge
 """
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 import json
 import os
@@ -177,8 +177,12 @@ def check_deny_rule(rule: Dict, tool_name: str, tool_input: Dict,
 
     pattern = rule.get("pattern")
     if pattern:
-        command = tool_input.get("command", "")
-        if not matches_regex(pattern, command):
+        # For Bash tools, match against command; for file tools, match against file_path
+        text_to_match = tool_input.get("command", "")
+        if not text_to_match:
+            file_path = extract_file_path(tool_name, tool_input)
+            text_to_match = file_path or ""
+        if not matches_regex(pattern, text_to_match):
             return False
 
     path_check = rule.get("path_check")
@@ -190,6 +194,23 @@ def check_deny_rule(rule: Dict, tool_name: str, tool_input: Dict,
     return True
 
 
+DEFAULT_LLM_PROMPT = """You are a security classifier for Claude Code tool calls. Decide if this tool call should be auto-approved or denied.
+
+Tool: {tool_name}
+Input: {tool_input}
+Working directory: {cwd}
+
+Rules:
+- DENY if the command could destroy data, leak credentials, or compromise the system
+- DENY if modifying system files, .env files, credentials, or agent config
+- DENY if running sudo, force-push, curl-pipe-to-shell, or destructive git operations
+- ALLOW for normal development tasks: reading files, running builds, editing project code, running tests, git operations
+- ALLOW for file reads/writes within the project directory
+- ALLOW for common package manager commands (npm install, pip install, cargo build)
+
+Respond with ONLY a JSON object: {{"decision": "allow" or "deny", "reason": "brief explanation"}}"""
+
+
 def llm_classify(tool_name: str, tool_input: Dict,
                  cwd: str, rules: Dict) -> Tuple[str, str]:
     """Use LLM to classify ambiguous operations. Returns (decision, reason)."""
@@ -197,7 +218,7 @@ def llm_classify(tool_name: str, tool_input: Dict,
     if not llm_config.get("enabled", False):
         return "allow", "No LLM fallback configured"
 
-    prompt_template = llm_config.get("prompt", "")
+    prompt_template = llm_config.get("prompt", "") or DEFAULT_LLM_PROMPT
     prompt = prompt_template.format(
         tool_name=tool_name,
         tool_input=json.dumps(tool_input, ensure_ascii=False)[:2000],
@@ -214,7 +235,7 @@ def llm_classify(tool_name: str, tool_input: Dict,
     if not api_key:
         return "allow", "No API key available"
 
-    timeout = llm_config.get("timeout_seconds", 10)
+    timeout = llm_config.get("timeout_seconds", 5)
     try:
         url = f"{base_url.rstrip('/')}/v1/messages"
         payload = json.dumps({
@@ -228,6 +249,7 @@ def llm_classify(tool_name: str, tool_input: Dict,
             headers={
                 "Content-Type": "application/json",
                 "x-api-key": api_key,
+                "authorization": f"Bearer {api_key}",
                 "anthropic-version": "2023-06-01",
             },
             method="POST"
@@ -249,6 +271,16 @@ def llm_classify(tool_name: str, tool_input: Dict,
         return "allow", f"LLM API error ({e.code})"
     except Exception as e:
         return "allow", f"LLM call failed: {str(e)[:80]}"
+
+
+def format_allow_output() -> str:
+    """Format JSON output for allowing a tool call (auto-approve)."""
+    return json.dumps({
+        "hookSpecificOutput": {
+            "hookEventName": "PreToolUse",
+            "permissionDecision": "allow"
+        }
+    })
 
 
 def format_deny_output(reason: str) -> str:
@@ -289,15 +321,18 @@ def main():
                 file=sys.stdout)
             sys.exit(EXIT_ALLOW)
 
-    # Phase 2: Allow rules
+    # Phase 2: Allow rules (explicitly output allow decision for auto-approve)
     for rule in rules.get("allow", []):
         if check_allow_rule(rule, tool_name, tool_input, cwd, project_root):
+            print(format_allow_output(), file=sys.stdout)
             sys.exit(EXIT_ALLOW)
 
     # Phase 3: LLM fallback
     decision, reason = llm_classify(tool_name, tool_input, cwd, rules)
     if decision == "deny":
         print(format_deny_output(reason), file=sys.stdout)
+    else:
+        print(format_allow_output(), file=sys.stdout)
     sys.exit(EXIT_ALLOW)
 
 
